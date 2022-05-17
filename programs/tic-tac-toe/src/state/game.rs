@@ -22,7 +22,7 @@ impl Game {
     pub const MAXIMUM_SIZE: usize = 117;
 
     pub fn start(&mut self, player_one: Pubkey, player_two: Pubkey) -> Result<()> {
-        require_eq!(self.is_active, false);
+        require_eq!(self.is_active, false, GameError::AlreadyActive);
         self.is_active = true;
         self.player_one = player_one;
         self.player_two = player_two;
@@ -31,7 +31,7 @@ impl Game {
     }
 
     pub fn play(&mut self, player: Pubkey, row: u8, col: u8) -> Result<()> {
-        require_eq!(self.is_active, true);
+        require_eq!(self.is_active, true, GameError::Inactive);
         require_gte!(self.board.len() - 1, row as usize, GameError::InvalidRow);
         require_gte!(self.board[row as usize].len() - 1, col as usize, GameError::InvalidColumn);
         require!(self.board[row as usize][col as usize].is_none(),GameError::TileTaken);
@@ -104,8 +104,12 @@ pub enum GameError {
     InvalidColumn,
     #[msg("This tile is already taken")]
     TileTaken,
-    #[msg("Not this player's  turn")]
+    #[msg("Not this player's turn")]
     NotYourTurn,
+    #[msg("This game is not active")]
+    Inactive,
+    #[msg("This game is already active")]
+    AlreadyActive,
 }
 
 
@@ -236,5 +240,26 @@ mod tests {
 
         let mut game = create_game(player_one, player_two);
         game.play(player_one, 3, 0).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "error_name: \"AlreadyActive\"")]
+    fn test_cant_start_active_game() {
+        let player_one = Pubkey::new_unique(); // X
+        let player_two = Pubkey::new_unique(); // O
+
+        let mut game = create_game(player_one, player_two);
+        game.start(player_one, player_two).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "error_name: \"Inactive\"")]
+    fn test_cant_play_inactive_game() {
+        let player_one = Pubkey::new_unique(); // X
+        let player_two = Pubkey::new_unique(); // O
+
+        let mut game = create_game(player_one, player_two);
+        game.is_active = false;
+        game.play(player_one, 0, 0).unwrap();
     }
 }
