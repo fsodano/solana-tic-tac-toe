@@ -2,6 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import {AnchorError, Program} from "@project-serum/anchor";
 import {TicTacToe} from "../target/types/tic_tac_toe";
 import {expect} from "chai";
+import {ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 
 const {SystemProgram} = anchor.web3;
 
@@ -25,11 +26,7 @@ describe("tic-tac-toe", () => {
                 playerTwo: playerTwo.publicKey,
                 systemProgram: SystemProgram.programId
             })
-            .signers([
-                gameAccount,
-                playerOne,
-                playerTwo
-            ])
+            .signers([gameAccount, playerOne, playerTwo])
             .rpc();
 
         const INVALID_ROW = 3;
@@ -39,12 +36,9 @@ describe("tic-tac-toe", () => {
             const COL = 1;
             await program.methods.play(INVALID_ROW, COL)
                 .accounts({
-                    gameAccount: gameAccount.publicKey,
-                    player: playerOne.publicKey,
+                    gameAccount: gameAccount.publicKey, player: playerOne.publicKey,
                 })
-                .signers([
-                    playerOne,
-                ])
+                .signers([playerOne,])
                 .rpc();
 
             chai.assert(false, "It should have failed with an InvalidRow error but it didn't work")
@@ -61,12 +55,9 @@ describe("tic-tac-toe", () => {
             const ROW = 1;
             const tx = await program.methods.play(ROW, INVALID_COL)
                 .accounts({
-                    gameAccount: gameAccount.publicKey,
-                    player: playerOne.publicKey,
+                    gameAccount: gameAccount.publicKey, player: playerOne.publicKey,
                 })
-                .signers([
-                    playerOne,
-                ])
+                .signers([playerOne,])
                 .rpc();
 
             console.log("Your transaction signature", tx);
@@ -85,12 +76,9 @@ describe("tic-tac-toe", () => {
         // [ ][ ][ ]
         await program.methods.play(0, 0)
             .accounts({
-                gameAccount: gameAccount.publicKey,
-                player: playerOne.publicKey,
+                gameAccount: gameAccount.publicKey, player: playerOne.publicKey,
             })
-            .signers([
-                playerOne,
-            ])
+            .signers([playerOne,])
             .rpc();
         board = await program.account.game.fetch(gameAccount.publicKey);
         console.log(board.board);
@@ -100,12 +88,9 @@ describe("tic-tac-toe", () => {
         // [ ][ ][ ]
         await program.methods.play(1, 0)
             .accounts({
-                gameAccount: gameAccount.publicKey,
-                player: playerTwo.publicKey,
+                gameAccount: gameAccount.publicKey, player: playerTwo.publicKey,
             })
-            .signers([
-                playerTwo,
-            ])
+            .signers([playerTwo,])
             .rpc();
 
         board = await program.account.game.fetch(gameAccount.publicKey);
@@ -114,12 +99,9 @@ describe("tic-tac-toe", () => {
         try {
             await program.methods.play(1, 0)
                 .accounts({
-                    gameAccount: gameAccount.publicKey,
-                    player: playerOne.publicKey,
+                    gameAccount: gameAccount.publicKey, player: playerOne.publicKey,
                 })
-                .signers([
-                    playerOne,
-                ])
+                .signers([playerOne,])
                 .rpc();
         } catch (e) {
             expect(e).to.be.instanceOf(AnchorError);
@@ -132,12 +114,9 @@ describe("tic-tac-toe", () => {
         try {
             await program.methods.play(2, 0)
                 .accounts({
-                    gameAccount: gameAccount.publicKey,
-                    player: playerTwo.publicKey,
+                    gameAccount: gameAccount.publicKey, player: playerTwo.publicKey,
                 })
-                .signers([
-                    playerTwo,
-                ])
+                .signers([playerTwo,])
                 .rpc();
         } catch (e) {
             expect(e).to.be.instanceOf(AnchorError);
@@ -152,16 +131,42 @@ describe("tic-tac-toe", () => {
         // [X][ ][ ]
         await program.methods.play(2, 0)
             .accounts({
-                gameAccount: gameAccount.publicKey,
-                player: playerOne.publicKey,
+                gameAccount: gameAccount.publicKey, player: playerOne.publicKey,
             })
-            .signers([
-                playerOne,
-            ])
+            .signers([playerOne,])
             .rpc();
 
         board = await program.account.game.fetch(gameAccount.publicKey);
         console.log(board.board);
 
+        // Get the PDA that is the mint for the faucet
+        const [mintPda] = await anchor.web3.PublicKey.findProgramAddress(
+            [Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))],
+            program.programId
+        );
+
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            mintPda,
+            playerOne.publicKey,
+            true,
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+
+        await program.methods.claimReward()
+            .accounts({
+                destination: associatedTokenAccount,
+                payer: playerOne.publicKey,
+                mint: mintPda,
+                associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                systemProgram: SystemProgram.programId,
+                rent: anchor.web3.SYSVAR_RENT_PUBKEY
+            })
+            .signers([playerOne])
+            .rpc();
+
+        console.log(associatedTokenAccount.toString());
+        console.log(playerOne.publicKey.toString());
     });
 });
