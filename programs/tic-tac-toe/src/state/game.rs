@@ -16,17 +16,20 @@ pub struct Game {
     is_active: bool,
     // 1 + 32 = 33
     winner: Option<Pubkey>,
+    // 2
+    sequence: u16
 }
 
 impl Game {
-    pub const MAXIMUM_SIZE: usize = 117;
+    pub const MAXIMUM_SIZE: usize = 119;
 
-    pub fn start(&mut self, player_one: Pubkey, player_two: Pubkey) -> Result<()> {
+    pub fn start(&mut self, player_one: Pubkey, player_two: Pubkey, sequence: u16) -> Result<()> {
         require_eq!(self.is_active, false, GameError::AlreadyActive);
         self.is_active = true;
         self.player_one = player_one;
         self.player_two = player_two;
         self.turn = false;
+        self.sequence = sequence;
         Ok(())
     }
 
