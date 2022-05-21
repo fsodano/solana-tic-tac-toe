@@ -247,7 +247,7 @@ mod tests {
         let player_two = Pubkey::new_unique(); // O
 
         let mut game = create_game(player_one, player_two);
-        game.play(player_one, 3, 0).unwrap();
+        game.play(player_one, 0, 3).unwrap();
     }
 
     #[test]
