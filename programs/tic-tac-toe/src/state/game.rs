@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 
 use crate::entity::sign::Sign;
+use crate::entity::Status;
+use crate::entity::Status::{FinishedAndClaimed, FinishedNotClaimed, NotStarted, Started};
 
 #[account]
 pub struct Game {
@@ -12,8 +14,8 @@ pub struct Game {
     turn: bool,
     // 9 * (1 + 1) = 18
     board: [[Option<Sign>; 3]; 3],
-    // 1
-    is_active: bool,
+    // 1 + 1 = 2
+    status: Status,
     // 1 + 32 = 33
     winner: Option<Pubkey>,
     // 2
@@ -21,15 +23,11 @@ pub struct Game {
 }
 
 impl Game {
-    pub const MAXIMUM_SIZE: usize = 119;
-
-    pub fn get_winner(&mut self) -> Option<Pubkey> {
-        self.winner
-    }
+    pub const MAXIMUM_SIZE: usize = 120;
 
     pub fn start(&mut self, player_one: Pubkey, player_two: Pubkey, sequence: u16) -> Result<()> {
-        require_eq!(self.is_active, false, GameError::AlreadyActive);
-        self.is_active = true;
+        require!(self.status.eq(&NotStarted), GameError::AlreadyActive);
+        self.status = Started;
         self.player_one = player_one;
         self.player_two = player_two;
         self.turn = false;
@@ -38,7 +36,7 @@ impl Game {
     }
 
     pub fn play(&mut self, player: Pubkey, row: u8, col: u8) -> Result<()> {
-        require_eq!(self.is_active, true, GameError::Inactive);
+        require!(self.status.eq(&Started), GameError::Inactive);
         require_gte!(self.board.len() - 1, row as usize, GameError::InvalidRow);
         require_gte!(self.board[row as usize].len() - 1, col as usize, GameError::InvalidColumn);
         require!(self.board[row as usize][col as usize].is_none(),GameError::TileTaken);
@@ -52,12 +50,12 @@ impl Game {
         self.board[row as usize][col as usize] = Some(sign);
 
         if self.has_won(sign) {
-            self.is_active = false;
+            self.status = FinishedNotClaimed;
             self.winner = Some(player);
         } else {
             let total_plays: u8 = self.board.into_iter().flatten().map(|tile| -> u8 { if tile.is_some() { 1 } else { 0 } }).sum();
             if total_plays == 9 {
-                self.is_active = false;
+                self.status = FinishedNotClaimed;
             } else {
                 self.turn = !self.turn;
             }
@@ -65,6 +63,20 @@ impl Game {
 
         Ok(())
     }
+
+    pub fn get_winner(&mut self) -> Option<Pubkey> {
+        self.winner
+    }
+
+    pub fn get_status(&mut self) -> Status {
+        self.status
+    }
+
+    pub fn set_claimed(&mut self) -> () {
+        self.status = FinishedAndClaimed;
+        ()
+    }
+
 
     fn has_won(&self, sign: Sign) -> bool {
         for i in 0..=2 {
@@ -124,6 +136,7 @@ pub enum GameError {
 mod tests {
     use anchor_lang::prelude::Pubkey;
 
+    use crate::entity::Status::{FinishedNotClaimed, NotStarted};
     use crate::state::Game;
 
     fn create_game(player_one: Pubkey, player_two: Pubkey) -> Game {
@@ -132,7 +145,7 @@ mod tests {
             player_two,
             turn: false,
             winner: None,
-            is_active: true,
+            status: NotStarted,
             board: [[None; 3]; 3],
             sequence: 1,
         }
@@ -204,7 +217,7 @@ mod tests {
                 current_player = if current_player.eq(&player_one) { player_two } else { player_one };
             }
 
-            assert_eq!(game.is_active, false);
+            assert_eq!(game.status, FinishedNotClaimed);
             assert_eq!(game.winner, winning_play.winner)
         });
     }
@@ -267,7 +280,7 @@ mod tests {
         let player_two = Pubkey::new_unique(); // O
 
         let mut game = create_game(player_one, player_two);
-        game.is_active = false;
+        game.status = NotStarted;
         game.play(player_one, 0, 0).unwrap();
     }
 }

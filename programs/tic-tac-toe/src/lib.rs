@@ -13,6 +13,8 @@ declare_id!("6BzuJZBHQXM5H8diTy5Pj6E91NdKfwnJ6joCf6Y6RnXp");
 
 #[program]
 pub mod tic_tac_toe {
+    use crate::entity::Status::FinishedNotClaimed;
+
     use super::*;
 
     pub fn setup_mint(_ctx: Context<SetupMintOnceInstruction>) -> Result<()> {
@@ -28,6 +30,8 @@ pub mod tic_tac_toe {
     }
 
     pub fn claim_reward(ctx: Context<ClaimRewardInstruction>) -> Result<()> {
+        let status = ctx.accounts.game_account.get_status();
+        require!(status.eq(&FinishedNotClaimed), ClaimErrorCode::WrongStatus);
         let winner = ctx.accounts.game_account.get_winner();
         require!(Option::is_some(&winner), ClaimErrorCode::NoWinner);
         require_keys_eq!(winner.unwrap(), ctx.accounts.receiver.key(), ClaimErrorCode::WrongClaimant);
@@ -45,6 +49,7 @@ pub mod tic_tac_toe {
             1 * 10_000_000,
         )?;
 
+        ctx.accounts.game_account.set_claimed();
         Ok(())
     }
 }
@@ -56,4 +61,6 @@ pub enum ClaimErrorCode {
     NoWinner,
     #[msg("The claimant is not the winner")]
     WrongClaimant,
+    #[msg("The status must be ready to be claimed")]
+    WrongStatus,
 }

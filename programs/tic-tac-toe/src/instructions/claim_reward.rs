@@ -15,7 +15,7 @@ pub struct ClaimRewardInstruction<'info> {
     associated_token::authority = receiver
     )]
     pub destination: Account<'info, TokenAccount>,
-    #[account()]
+    #[account(mut)]
     pub game_account: Account<'info, Game>,
     #[account(mut)]
     pub receiver: Signer<'info>,

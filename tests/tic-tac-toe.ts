@@ -6,7 +6,7 @@ import {ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, TOKEN_PROGRAM_ID
 
 const {SystemProgram} = anchor.web3;
 
-describe("tic-tac-toe operation", () => {
+describe("tic-tac-toe operation", async () => {
     try {
         const provider = anchor.AnchorProvider.env();
         anchor.setProvider(provider);
@@ -16,8 +16,9 @@ describe("tic-tac-toe operation", () => {
         const programOwner = provider.wallet;
         const playerOne = anchor.web3.Keypair.generate();
         const playerTwo = anchor.web3.Keypair.generate();
+        const [mintPda] = await anchor.web3.PublicKey.findProgramAddress([Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))], program.programId);
+        describe("one time game setup", async () => {
 
-        describe("one time game setup", () => {
                 it("funds the accounts that act as payers", async () => {
                     await provider.connection.requestAirdrop(programOwner.publicKey, 2 * 1_000_000_000);
                     await provider.connection.requestAirdrop(program.programId, 2 * 1_000_000_000);
@@ -27,8 +28,6 @@ describe("tic-tac-toe operation", () => {
 
                 it("sets up the mint to pay the custom token", async () => {
                     try {
-                        const [mintPda] = await anchor.web3.PublicKey.findProgramAddress([Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))], program.programId);
-
                         await program.methods.setupMint()
                             .accounts({
                                 payer: programOwner.publicKey,
@@ -148,7 +147,7 @@ describe("tic-tac-toe operation", () => {
                     })
                 })
 
-                describe("game starts", () => {
+                describe("game starts", async () => {
                     it("starts with player one", async () => {
 
                         // [X][ ][ ]
@@ -266,15 +265,11 @@ describe("tic-tac-toe operation", () => {
                         board = await program.account.game.fetch(gameAccount);
                         console.log(board.board);
                         expect(board.winner.toString()).to.eq(playerTwo.publicKey.toString())
-                        expect(board.isActive).to.eq(false);
+                        expect(board.status).contains.keys(["finishedNotClaimed"])
                     });
 
                     it("cannot claim the token if its not the winner", async () => {
                         try {
-                            const [mintPda] = await anchor.web3.PublicKey.findProgramAddress(
-                                [Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))],
-                                program.programId
-                            );
 
                             const associatedTokenAccount = await getAssociatedTokenAddress(
                                 mintPda,
@@ -305,11 +300,6 @@ describe("tic-tac-toe operation", () => {
                     });
 
                     it("Claims the token correctly", async () => {
-                        const [mintPda] = await anchor.web3.PublicKey.findProgramAddress(
-                            [Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))],
-                            program.programId
-                        );
-
                         const associatedTokenAccount = await getAssociatedTokenAddress(
                             mintPda,
                             playerTwo.publicKey,
@@ -331,7 +321,36 @@ describe("tic-tac-toe operation", () => {
                             })
                             .signers([playerTwo])
                             .rpc();
+                    });
 
+                    it("fails when trying to claim the token again", async () => {
+                        try {
+                            const associatedTokenAccount = await getAssociatedTokenAddress(
+                                mintPda,
+                                playerTwo.publicKey,
+                                true,
+                                TOKEN_PROGRAM_ID,
+                                ASSOCIATED_TOKEN_PROGRAM_ID,
+                            );
+
+                            await program.methods.claimReward()
+                                .accounts({
+                                    gameAccount,
+                                    receiver: playerTwo.publicKey,
+                                    destination: associatedTokenAccount,
+                                    mint: mintPda,
+                                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                                    tokenProgram: TOKEN_PROGRAM_ID,
+                                    systemProgram: SystemProgram.programId,
+                                    rent: anchor.web3.SYSVAR_RENT_PUBKEY
+                                })
+                                .signers([playerTwo])
+                                .rpc();
+                        } catch (e) {
+                            expect(e).to.be.instanceOf(AnchorError);
+                            const err = e as AnchorError;
+                            expect(err.error.errorCode.code).to.equal("WrongStatus");
+                        }
                     });
                 });
             })
