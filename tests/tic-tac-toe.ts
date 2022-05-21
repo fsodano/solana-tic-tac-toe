@@ -7,41 +7,46 @@ import {ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, TOKEN_PROGRAM_ID
 const {SystemProgram} = anchor.web3;
 
 describe("tic-tac-toe operation", () => {
-
     try {
         const provider = anchor.AnchorProvider.env();
         anchor.setProvider(provider);
 
         const program = anchor.workspace.TicTacToe as Program<TicTacToe>;
-        const seed = Uint8Array.from([112, 202, 158, 133, 22, 221, 138, 146, 45, 135, 216, 70, 56, 49, 14, 181, 249, 146, 20, 156, 40, 247, 210, 31, 36, 41, 6, 200, 153, 12, 144, 128, 88, 1, 129, 167, 39, 219, 136, 149, 190, 47, 53, 110, 29, 206, 220, 151, 183, 124, 201, 101, 143, 48, 207, 96, 67, 124, 124, 232, 222, 186, 39, 109]).slice(0, 32);
-        const programOwner = anchor.web3.Keypair.fromSeed(seed);
+        // const seed = Uint8Array.from([112, 202, 158, 133, 22, 221, 138, 146, 45, 135, 216, 70, 56, 49, 14, 181, 249, 146, 20, 156, 40, 247, 210, 31, 36, 41, 6, 200, 153, 12, 144, 128, 88, 1, 129, 167, 39, 219, 136, 149, 190, 47, 53, 110, 29, 206, 220, 151, 183, 124, 201, 101, 143, 48, 207, 96, 67, 124, 124, 232, 222, 186, 39, 109]).slice(0, 32);
+        const programOwner = provider.wallet;
         const playerOne = anchor.web3.Keypair.generate();
         const playerTwo = anchor.web3.Keypair.generate();
 
         describe("one time game setup", () => {
-            it("funds the accounts that act as payers", async () => {
-                await provider.connection.requestAirdrop(programOwner.publicKey, 2 * 1_000_000_000);
-                await provider.connection.requestAirdrop(playerOne.publicKey, 2 * 1_000_000_000);
-                await provider.connection.requestAirdrop(playerTwo.publicKey, 2 * 1_000_000_000);
-            });
+                it("funds the accounts that act as payers", async () => {
+                    await provider.connection.requestAirdrop(programOwner.publicKey, 2 * 1_000_000_000);
+                    await provider.connection.requestAirdrop(program.programId, 2 * 1_000_000_000);
+                    await provider.connection.requestAirdrop(playerOne.publicKey, 2 * 1_000_000_000);
+                    await provider.connection.requestAirdrop(playerTwo.publicKey, 2 * 1_000_000_000);
+                });
 
-            it("sets up the mint to pay the custom token", async () => {
-                const [mintPda] = await anchor.web3.PublicKey.findProgramAddress([Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))], program.programId);
+                it("sets up the mint to pay the custom token", async () => {
+                    try {
+                        const [mintPda] = await anchor.web3.PublicKey.findProgramAddress([Buffer.from(anchor.utils.bytes.utf8.encode("tic-tac-toe"))], program.programId);
 
-                await program.methods.setupMint()
-                    .accounts({
-                        payer: programOwner.publicKey,
-                        mint: mintPda,
-                        tokenProgram: TOKEN_PROGRAM_ID,
-                        systemProgram: SystemProgram.programId,
-                        rent: anchor.web3.SYSVAR_RENT_PUBKEY
-                    })
-                    .signers([programOwner])
-                    .rpc();
+                        await program.methods.setupMint()
+                            .accounts({
+                                payer: programOwner.publicKey,
+                                mint: mintPda,
+                                tokenProgram: TOKEN_PROGRAM_ID,
+                                systemProgram: SystemProgram.programId,
+                                rent: anchor.web3.SYSVAR_RENT_PUBKEY
+                            })
+                            .rpc();
 
-                console.log('mint PDA address: ', mintPda.toString());
-            });
-        })
+                        console.log('mint PDA address: ', mintPda.toString());
+                    } catch (e) {
+                        console.log(e);
+                        throw e;
+                    }
+                });
+            }
+        );
 
         describe("play a new game", async () => {
             let board;
@@ -331,8 +336,10 @@ describe("tic-tac-toe operation", () => {
                 });
             })
         })
-    } catch (e) {
+    } catch
+        (e) {
         console.log(e);
         throw e;
     }
-});
+})
+;

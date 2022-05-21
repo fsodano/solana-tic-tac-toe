@@ -15,7 +15,7 @@ declare_id!("6BzuJZBHQXM5H8diTy5Pj6E91NdKfwnJ6joCf6Y6RnXp");
 pub mod tic_tac_toe {
     use super::*;
 
-    pub fn setup_mint(ctx: Context<SetupMintOnceInstruction>) -> Result<()> {
+    pub fn setup_mint(_ctx: Context<SetupMintOnceInstruction>) -> Result<()> {
         Ok(())
     }
 
