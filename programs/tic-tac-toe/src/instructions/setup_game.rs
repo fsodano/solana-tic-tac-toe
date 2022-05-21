@@ -11,7 +11,7 @@ pub struct SetupGameInstruction<'info> {
     #[account(
     init,
     payer = player_one,
-    seeds = [b"game".as_ref(), player_one.key().as_ref(), player_two.key().as_ref(), & [(game_number >> 8) as u8, (game_number & 0xff) as u8]],
+    seeds = [b"game".as_ref(), player_one.key.as_ref(), player_two.key.as_ref(), &[(game_number >> 8) as u8, (game_number & 0xff) as u8]],
     bump,
     space = Game::MAXIMUM_SIZE + 8
     )]

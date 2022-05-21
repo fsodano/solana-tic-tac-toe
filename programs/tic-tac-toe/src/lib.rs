@@ -15,13 +15,11 @@ declare_id!("6BzuJZBHQXM5H8diTy5Pj6E91NdKfwnJ6joCf6Y6RnXp");
 pub mod tic_tac_toe {
     use super::*;
 
-    pub fn setup_mint(_ctx: Context<SetupMintOnceInstruction>) -> Result<()> {
+    pub fn setup_mint(ctx: Context<SetupMintOnceInstruction>) -> Result<()> {
         Ok(())
     }
 
     pub fn setup_game(ctx: Context<SetupGameInstruction>, game_number: u16) -> Result<()> {
-        msg!(game_number);
-        msg!(&ctx.bumps.get("game_account").unwrap().to_string());
         ctx.accounts.game_account.start(ctx.accounts.player_one.key(), ctx.accounts.player_two.key(), game_number)
     }
 
@@ -30,6 +28,10 @@ pub mod tic_tac_toe {
     }
 
     pub fn claim_reward(ctx: Context<ClaimRewardInstruction>) -> Result<()> {
+        let winner = ctx.accounts.game_account.get_winner();
+        require!(Option::is_some(&winner), ClaimErrorCode::NoWinner);
+        require_keys_eq!(winner.unwrap(), ctx.accounts.receiver.key(), ClaimErrorCode::WrongClaimant);
+
         anchor_spl::token::mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -42,7 +44,17 @@ pub mod tic_tac_toe {
             ),
             1 * 10_000_000,
         )?;
+
+
         Ok(())
     }
 }
 
+
+#[error_code]
+pub enum ClaimErrorCode {
+    #[msg("This game has no winner")]
+    NoWinner,
+    #[msg("The claimant is not the winner")]
+    WrongClaimant,
+}

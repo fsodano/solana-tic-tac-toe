@@ -4,6 +4,8 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount},
 };
 
+use crate::state::Game;
+
 #[derive(Accounts)]
 pub struct ClaimRewardInstruction<'info> {
     #[account(
@@ -13,9 +15,15 @@ pub struct ClaimRewardInstruction<'info> {
     associated_token::authority = receiver
     )]
     pub destination: Account<'info, TokenAccount>,
+    #[account()]
+    pub game_account: Account<'info, Game>,
     #[account(mut)]
     pub receiver: Signer<'info>,
-    #[account()]
+    #[account(
+    mut,
+    seeds = [b"tic-tac-toe".as_ref()],
+    bump,
+    )]
     pub mint: Account<'info, Mint>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
