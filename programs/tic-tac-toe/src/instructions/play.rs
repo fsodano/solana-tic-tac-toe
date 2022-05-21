@@ -6,6 +6,5 @@ use crate::state::game::Game;
 pub struct PlayInstruction<'info> {
     #[account(mut)]
     pub game_account: Account<'info, Game>,
-    #[account()]
     pub player: Signer<'info>,
 }

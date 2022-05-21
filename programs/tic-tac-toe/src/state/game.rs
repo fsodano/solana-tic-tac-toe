@@ -16,17 +16,24 @@ pub struct Game {
     is_active: bool,
     // 1 + 32 = 33
     winner: Option<Pubkey>,
+    // 2
+    sequence: u16,
 }
 
 impl Game {
-    pub const MAXIMUM_SIZE: usize = 117;
+    pub const MAXIMUM_SIZE: usize = 119;
 
-    pub fn start(&mut self, player_one: Pubkey, player_two: Pubkey) -> Result<()> {
+    pub fn get_winner(&mut self) -> Option<Pubkey> {
+        self.winner
+    }
+
+    pub fn start(&mut self, player_one: Pubkey, player_two: Pubkey, sequence: u16) -> Result<()> {
         require_eq!(self.is_active, false, GameError::AlreadyActive);
         self.is_active = true;
         self.player_one = player_one;
         self.player_two = player_two;
         self.turn = false;
+        self.sequence = sequence;
         Ok(())
     }
 
@@ -81,13 +88,13 @@ impl Game {
                 u8::from(s.eq(&Some(sign)))
             }).collect();
 
-        let left_to_right_sum = sign_distribution[0] + sign_distribution[4] + sign_distribution[8];
-        if left_to_right_sum == 3 {
+        let left_to_right_diagonal_sum = sign_distribution[0] + sign_distribution[4] + sign_distribution[8];
+        if left_to_right_diagonal_sum == 3 {
             return true;
         }
 
-        let right_to_left_sum = sign_distribution[2] + sign_distribution[4] + sign_distribution[6];
-        if right_to_left_sum == 3 {
+        let right_to_left_diagonal_sum = sign_distribution[2] + sign_distribution[4] + sign_distribution[6];
+        if right_to_left_diagonal_sum == 3 {
             return true;
         }
 
@@ -117,7 +124,7 @@ pub enum GameError {
 mod tests {
     use anchor_lang::prelude::Pubkey;
 
-    use crate::state::{Game};
+    use crate::state::Game;
 
     fn create_game(player_one: Pubkey, player_two: Pubkey) -> Game {
         Game {
@@ -127,6 +134,7 @@ mod tests {
             winner: None,
             is_active: true,
             board: [[None; 3]; 3],
+            sequence: 1,
         }
     }
 
@@ -239,7 +247,7 @@ mod tests {
         let player_two = Pubkey::new_unique(); // O
 
         let mut game = create_game(player_one, player_two);
-        game.play(player_one, 3, 0).unwrap();
+        game.play(player_one, 0, 3).unwrap();
     }
 
     #[test]
@@ -249,7 +257,7 @@ mod tests {
         let player_two = Pubkey::new_unique(); // O
 
         let mut game = create_game(player_one, player_two);
-        game.start(player_one, player_two).unwrap();
+        game.start(player_one, player_two, 1).unwrap();
     }
 
     #[test]
